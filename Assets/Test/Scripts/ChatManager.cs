@@ -25,12 +25,15 @@ internal sealed class ChatManager : MonoBehaviour
     private const int elementsInChatLog = 7;
 
     private readonly Queue<string> chatLog = new Queue<string>();
- 
+
+    private void OnEnable()
+    {
+        chatLogOutput.text = string.Empty;
+    }
+
     // Use this for initialization
     private void Start()
     {
-        chatLogOutput.text = string.Empty;
-
         UpdadePlayersList();
     }
 
@@ -75,8 +78,6 @@ internal sealed class ChatManager : MonoBehaviour
 
             var session = gameSparksHandler.RTSession;
             
-            messageInput.text = string.Empty;
-
             if (recipientOption.options[recipientOption.value].text == "To All")
             {
                 Debug.Log("Sending Message to All Players... \n" + messageInput.text);
@@ -101,6 +102,8 @@ internal sealed class ChatManager : MonoBehaviour
                 session.SendData(1, GameSparksRT.DeliveryIntent.RELIABLE, data, player.Peer);
             }
         }
+
+        messageInput.text = string.Empty;
     }
 
     private void UpdateChatLog(string sender, string message, string date)

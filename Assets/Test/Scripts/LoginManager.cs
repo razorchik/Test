@@ -14,7 +14,7 @@ internal sealed class LoginManager : MonoBehaviour
     [SerializeField]
     private InputField passwordField;
 
-    public event Action onRegistration = delegate { };
+    public event Action<string> onRegistration = delegate { };
     
     public void Login()
     {
@@ -65,6 +65,6 @@ internal sealed class LoginManager : MonoBehaviour
     private void OnRegistrationComplete()
     {
         gameObject.SetActive(false);
-        onRegistration();
+        onRegistration(inputField.text);
     }
 }

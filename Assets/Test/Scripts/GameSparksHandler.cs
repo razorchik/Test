@@ -8,7 +8,6 @@ using GameSparks.Api.Requests;
 using GameSparks.RT;
 
 using UnityEngine;
-using UnityEngine.UI;
 
 [RequireComponent(typeof(GameSparksRTUnity), typeof(GameSparksUnity))]
 internal sealed class GameSparksHandler : MonoBehaviour
@@ -20,7 +19,7 @@ internal sealed class GameSparksHandler : MonoBehaviour
     private ChatManager chatManager;
 
     [SerializeField]
-    private Button findPlayers;
+    private LobbyManager lobbyManager;
 
     private bool newSession;
 
@@ -36,9 +35,15 @@ internal sealed class GameSparksHandler : MonoBehaviour
             {
                 if (!newSession)
                     return;
-                loginManager.onRegistration += () =>
+
+                loginManager.onRegistration += n =>
                 {
-                    findPlayers.gameObject.SetActive(true);
+                    lobbyManager.gameObject.SetActive(true);
+
+                    lobbyManager.UpdatePlayerText(n);
+                    lobbyManager.UpdatePlayersCount(0);
+
+                    FindPlayers();
                 };
 
                 newSession = false;
@@ -51,6 +56,7 @@ internal sealed class GameSparksHandler : MonoBehaviour
         };
 
         MatchFoundMessage.Listener += OnMatchFoundMessage;
+        MatchNotFoundMessage.Listener += OnMatchNotFoundMessage;
     }
 
     public GameSparksRTUnity RTSession
@@ -63,29 +69,21 @@ internal sealed class GameSparksHandler : MonoBehaviour
         get { return players.ToArray(); }
     }
 
-    public void FindPlayers()
-    {
-        var request = new MatchmakingRequest();
-
-        request.SetMatchShortCode("test_match");
-        request.SetSkill(0);
-
-        request.Send(r =>
-        {
-            if (r.HasErrors)
-                Debug.LogError("GSM| MatchMaking Error" + r.Errors.JSON);
-        });
-    }
-
     private void OnMatchFoundMessage(MatchFoundMessage msg)
-    {
-        var session = RTSession;
-
-        session.Configure(msg, OnPlayerConnect, OnPlayerDisconnect, OnReady, OnRTPacket);
-        session.Connect();
-        
+    {       
         players.Clear();
         players.AddRange(msg.Participants.Where(p => p.PeerId != null).Select(p => new PlayerInfo { DisplaName = p.DisplayName, Id = p.Id, Peer = (int)p.PeerId, OnLine = true}));
+
+        RTSession.Configure(msg, OnPlayerConnect, OnPlayerDisconnect, OnReady, OnRTPacket);
+
+        lobbyManager.UpdatePlayersCount(players.Count);
+
+        StartCoroutine(StartSession());
+    }
+
+    private void OnMatchNotFoundMessage(MatchNotFoundMessage msg)
+    {
+        FindPlayers();
     }
 
     private void OnPlayerConnect(int peerId)
@@ -134,9 +132,36 @@ internal sealed class GameSparksHandler : MonoBehaviour
         }
     }
 
-    public void OnEndMatch()
+    private IEnumerator StartSession()
+    {
+        yield return new WaitForSeconds(2f);
+
+        RTSession.Connect();
+        lobbyManager.gameObject.SetActive(false);
+    }
+
+    private void FindPlayers()
+    {
+        var request = new MatchmakingRequest();
+
+        request.SetMatchShortCode("test_match");
+        request.SetSkill(0);
+
+        request.Send(r =>
+        {
+            if (r.HasErrors)
+                Debug.LogError("GSM | MatchMaking Error" + r.Errors.JSON);
+        });
+    }
+
+    public void OnEndChat()
     {
         chatManager.gameObject.SetActive(false);
-        findPlayers.gameObject.SetActive(true);
+
+        lobbyManager.gameObject.SetActive(true);
+        lobbyManager.UpdatePlayersCount(0);
+
+        RTSession.Disconnect();
+        FindPlayers();
     }
 }
